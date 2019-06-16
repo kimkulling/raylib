@@ -3,7 +3,7 @@
 *   raylib - transmission mission
 *
 *
-*   Copyright (c) 2014-2018 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2014-2019 Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -137,8 +137,8 @@ void UpdateTitleScreen(void)
 void DrawTitleScreen(void)
 {
     DrawTexture(texBackground, 0,0, WHITE);
-    DrawTextEx(fontTitle, SubText(textTitle, 0, transmissionLenght), transmissionPosition, titleSize, 0, titleColor);
-    DrawTextEx(fontTitle, SubText(textTitle, 12, missionLenght), missionPositon, titleSize, 0, titleColor);      
+    DrawTextEx(fontTitle, TextSubtext(textTitle, 0, transmissionLenght), transmissionPosition, titleSize, 0, titleColor);
+    DrawTextEx(fontTitle, TextSubtext(textTitle, 12, missionLenght), missionPositon, titleSize, 0, titleColor);      
 
     DrawButton("start");
 }

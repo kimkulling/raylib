@@ -7,7 +7,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2017-2018 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2017-2019 Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -44,6 +44,9 @@
     #define _GLFW_COCOA
     #define _GLFW_USE_MENUBAR       // To create and populate the menu bar when the first window is created
     #define _GLFW_USE_RETINA        // To have windows use the full resolution of Retina displays
+#endif
+#if defined(__TINYC__)
+    #define _WIN32_WINNT_WINXP		0x0501
 #endif
 
 // NOTE: _GLFW_MIR experimental platform not supported at this moment

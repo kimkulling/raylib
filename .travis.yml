@@ -17,7 +17,7 @@ matrix:
       env: ARCH=amd64 INSTALL_GLFW=YES USE_EXTERNAL_GLFW=OFF
       sudo: required
     - os: linux
-      env: ARCH=amd64 INSTALL_GLFW=YES OPENAL=ON STATIC=OFF RELEASE=NO
+      env: ARCH=amd64 INSTALL_GLFW=YES STATIC=OFF RELEASE=NO
       sudo: required
     - os: linux
       env: WAYLAND=ON ARCH=amd64 RELEASE=NO
@@ -42,6 +42,9 @@ matrix:
     - os: linux
       env: ARCH=html5 RELEASE=NO
       sudo: required
+    - os: windows
+      compiler: gcc
+      env: ARCH=i386 SHARED=OFF RELEASE=NO
 
 before_script:
 
@@ -49,7 +52,6 @@ before_install:
   - if [ -z "$USE_EXTERNAL_GLFW" ]; then export USE_EXTERNAL_GLFW=IF_POSSIBLE; fi
   - if [ -z "$SHARED"            ]; then export SHARED=ON ; fi
   - if [ -z "$STATIC"            ]; then export STATIC=ON ; fi
-  - if [ -z "$OPENAL"            ]; then export OPENAL=OFF; fi
   - if [[ "$INSTALL_GLFW" == "YES" && "$USE_EXTERNAL_GLFW" != "OFF" ]]; then
       export DONT_TEST=1;
     fi
@@ -91,9 +93,16 @@ before_install:
 
         export RAYLIB_PACKAGE_SUFFIX="-Linux-$ARCH";
         if [ "$INSTALL_GLFW" == "YES" ]; then
-          wget 'http://ftp.de.debian.org/debian/pool/main/g/glfw3/libglfw3_3.2.1-1_amd64.deb';
-          wget 'http://ftp.de.debian.org/debian/pool/main/g/glfw3/libglfw3-dev_3.2.1-1_amd64.deb';
-          sudo dpkg -i libglfw3_3.2.1-1_amd64.deb libglfw3-dev_3.2.1-1_amd64.deb;
+          pushd src/external/glfw;
+          cmake . -DGLFW_BUILD_DOCS=OFF
+                  -DGLFW_BUILD_TESTS=OFF
+                  -DGLFW_BUILD_EXAMPLES=OFF
+                  -DGLFW_INSTALL=ON
+                  -DBUILD_SHARED_LIBS=ON
+                  -DGLFW_USE_WAYLAND=$WAYLAND;
+          make;
+          sudo make install;
+          popd;
         fi;
       fi;
     fi
@@ -101,17 +110,25 @@ before_install:
       export RAYLIB_PACKAGE_SUFFIX="-macOS";
       if [ "$INSTALL_GLFW" == "YES" ]; then brew update; brew install glfw; fi;
     fi
+  - if [ "$TRAVIS_OS_NAME" == "windows" ]; then
+      export DONT_TEST=1;
+      export RAYLIB_PACKAGE_SUFFIX="-windows";
+      export CMAKE_ARCH_ARGS='-DPLATFORM=Desktop';
+    fi
   - mkdir build
   - $RUNNER $CC --version
 
 script:
   - cd build
-  - if test -n "$WAYLAND";
-      then wget https://mirrors.kernel.org/ubuntu/pool/universe/e/extra-cmake-modules/extra-cmake-modules_5.38.0a-0ubuntu1_amd64.deb;
-      sudo dpkg -i extra-cmake-modules_5.38.0a-0ubuntu1_amd64.deb;
+  - if test -n "$WAYLAND"; then
+      wget https://mirrors.edge.kernel.org/ubuntu/pool/universe/e/extra-cmake-modules/extra-cmake-modules_5.44.0-0ubuntu1_amd64.deb;
+      sudo apt-get clean;
+      sudo apt-get update;
+      sudo apt-get install dpkg;
+      sudo dpkg -i extra-cmake-modules_5.44.0-0ubuntu1_amd64.deb;
       git clone git://anongit.freedesktop.org/wayland/wayland-protocols;
       pushd wayland-protocols;
-      git checkout 1.12 && ./autogen.sh --prefix=/usr && make && sudo make install;
+      git checkout 1.15 && ./autogen.sh --prefix=/usr && make && sudo make install;
       popd;
     fi
   - $RUNNER cmake $CMAKE_ARCH_ARGS
@@ -121,10 +138,15 @@ script:
       -DUSE_EXTERNAL_GLFW=$USE_EXTERNAL_GLFW
       -DUSE_WAYLAND=$WAYLAND
       -DINCLUDE_EVERYTHING=ON
+      -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
       ..
-  - $RUNNER make VERBOSE=1
-  - if [ "$RELEASE" != "NO" ]; then $RUNNER make package; fi
-  - sudo $RUNNER make install
+  - $RUNNER cmake --build . --target
+  - if [ "$RELEASE" != "NO" ]; then $RUNNER cmake --build . --target package; fi
+  - if [ -n "$RUNNER" ]; then
+      sudo $RUNNER cmake --build . --target install;
+    else
+      $(which sudo) $RUNNER "$(which cmake)" --build . --target install;
+    fi
   - if [ ! "$DONT_TEST" ]; then
       pkg-config --static --libs raylib;
       nm -g release/libraylib.a | grep glfwGetProcAddress || (echo "libraylib.a doesn't contain GLFW symbols! Aborting..." && false);

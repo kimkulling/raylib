@@ -3,8 +3,8 @@ project(raylib C)
 include(GNUInstallDirs)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
 
-set(PROJECT_VERSION 2.0.0)
-set(API_VERSION 2)
+set(PROJECT_VERSION 2.5.0)
+set(API_VERSION 251)
 
 include("CMakeOptions.txt")
 include(BuildType)
@@ -37,6 +37,7 @@ if(NOT glfw3_FOUND AND NOT USE_EXTERNAL_GLFW STREQUAL "ON" AND "${PLATFORM}" MAT
   add_subdirectory(external/glfw)
 
   list(APPEND raylib_sources $<TARGET_OBJECTS:glfw_objlib>)
+  include_directories(BEFORE SYSTEM external/glfw/include)
 else()
   MESSAGE(STATUS "Using external GLFW")
   set(GLFW_PKG_DEPS glfw3)
@@ -45,14 +46,12 @@ endif()
 add_definitions("-DRAYLIB_CMAKE=1")
 
 if(USE_AUDIO)
-  file(GLOB mini_al external/mini_al.c)
-  MESSAGE(STATUS "Audio Backend: mini_al")
-  file(GLOB stb_vorbis external/stb_vorbis.c)
-  set(sources ${raylib_sources} ${mini_al} ${stb_vorbis})
+  MESSAGE(STATUS "Audio Backend: miniaudio")
+  set(sources ${raylib_sources})
 else()
   MESSAGE(STATUS "Audio Backend: None (-DUSE_AUDIO=OFF)")
-  set(INCLUDE_AUDIO_MODULE 0)
-  list(REMOVE_ITEM raylib_sources ${CMAKE_CURRENT_SOURCE_DIR}/audio.c)
+  set(RAYLIB_MODULE_AUDIO 0)
+  list(REMOVE_ITEM raylib_sources ${CMAKE_CURRENT_SOURCE_DIR}/raudio.c)
   set(sources ${raylib_sources})
 endif()
 
@@ -74,6 +73,7 @@ if(${PLATFORM} MATCHES "Desktop")
     endif()
   elseif(WIN32)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+    set(LIBS_PRIVATE ${LIBS_PRIVATE} winmm)
   else()
     find_library(pthread NAMES pthread)
     find_package(OpenGL QUIET)
@@ -190,6 +190,13 @@ if(SHARED)
       PUBLIC ${GRAPHICS}
   )
 
+  if(MSVC)
+    target_compile_definitions(raylib
+      PRIVATE $<BUILD_INTERFACE:BUILD_LIBTYPE_SHARED>
+      INTERFACE $<INSTALL_INTERFACE:USE_LIBTYPE_SHARED>
+    )
+  endif()
+
   set(PKG_CONFIG_LIBS_EXTRA "")
 
   set_property(TARGET raylib PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -216,7 +223,9 @@ if(SHARED)
   if (WIN32)
     install(
       TARGETS raylib
-      RUNTIME DESTINATION "lib"
+      ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+      LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+      RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
       PUBLIC_HEADER DESTINATION "include"
     )
   else()
@@ -251,7 +260,7 @@ file(COPY "raylib.h" DESTINATION ".")
 file(COPY "rlgl.h" DESTINATION ".")
 file(COPY "physac.h" DESTINATION ".")
 file(COPY "raymath.h" DESTINATION ".")
-file(COPY "audio.h" DESTINATION ".")
+file(COPY "raudio.h" DESTINATION ".")
 
 # Print the flags for the user
 message(STATUS "Compiling with the flags:")
